@@ -903,7 +903,7 @@ class UserService {
                 },
             };
 
-            const createResponse = await this.httpClient.request('/api/user', {
+            const createResponse = await this.httpClient.request('/api/user?sendActivationMail=false', {
                 method: 'POST',
                 body: JSON.stringify(userData),
             });
