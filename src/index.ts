@@ -935,6 +935,9 @@ class UserService {
             // Activar usuario con contraseña
             await this.activateUser(user.id.id, password);
 
+            console.log(`📧 sendEmail: ${sendEmail}`);
+            console.log(`📧 emailService.isReady(): ${this.emailService.isReady()}`);
+
             // Enviar email
             let emailSent = false;
             if (sendEmail && this.emailService.isReady()) {
