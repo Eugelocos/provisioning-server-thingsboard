@@ -345,7 +345,7 @@ class OptimizedHTTPClient {
             return this.tokenCache.token;
         }
 
-        const url = `${TB_CONFIG.protocol}://${TB_CONFIG.host}:${TB_CONFIG.port}/api/auth/login`;
+        const url = `http://${TB_CONFIG.host}:${TB_CONFIG.port}/api/auth/login`;
 
         const response = await this.makeRequest(url, {
             method: "POST",
