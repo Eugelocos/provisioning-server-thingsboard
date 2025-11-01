@@ -1,6 +1,7 @@
 # Usamos Node LTS
 FROM node:22-alpine
 
+
 # Carpeta de trabajo
 WORKDIR /app
 
