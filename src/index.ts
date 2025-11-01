@@ -978,9 +978,9 @@ class UserService {
 
     private async activateUser(userId: string, password: string): Promise<void> {
         try {
-            // Generar activation token
+            // Obtener el token directamente sin parsear URL
             const activationResponse = await this.httpClient.request(
-                `/api/user/${userId}/activationLink`,
+                `/api/user/${userId}/activationLink?sendActivationMail=false`,
                 { method: 'GET' }
             );
 
@@ -989,42 +989,37 @@ class UserService {
             }
 
             const activationLink = await activationResponse.text();
+            console.log(`📋 Activation link recibido: ${activationLink}`);
 
-            console.log(`📋 Activation link completo: ${activationLink}`);
+            // Extraer TODO después de activateToken= hasta el final o hasta &
+            const tokenMatch = activationLink.match(/activateToken=([^&\s]+)/);
 
-            // Extraer token de la URL
-            const activationToken = activationLink.split('activateToken=')[1]?.split('&')[0];
-
-            if (!activationToken) {
-                throw new Error(`No se pudo extraer token de: ${activationLink}`);
+            if (!tokenMatch || !tokenMatch[1]) {
+                throw new Error(`No se pudo extraer token del link: ${activationLink}`);
             }
 
-            console.log(`🔑 Token extraído: ${activationToken.substring(0, 20)}...`);
-            console.log(`🔑 Token completo length: ${activationToken.length}`);
+            const activationToken = tokenMatch[1];
+            console.log(`🔑 Token extraído: ${activationToken}`);
+            console.log(`🔑 Token length: ${activationToken.length}`);
 
-            // Construir URL
-            const activateUrl = `/api/noauth/activate?activateToken=${encodeURIComponent(activationToken)}&sendActivationMail=false`;
-            console.log(`🌐 URL de activación: ${activateUrl.substring(0, 100)}...`);
+            // NO uses encodeURIComponent, el token ya viene en formato URL-safe
+            const activateUrl = `/api/noauth/activate?activateToken=${activationToken}&sendActivationMail=false`;
+            console.log(`🌐 URL completa: ${activateUrl}`);
 
-            // Activar con contraseña
             const activateResponse = await this.httpClient.request(
                 activateUrl,
                 {
                     method: 'POST',
-                    body: JSON.stringify({
-                        password: password,
-                    }),
+                    body: JSON.stringify({ password }),
                 }
             );
 
             if (!activateResponse.ok) {
                 const errorText = await activateResponse.text();
-                console.error(`❌ Response status: ${activateResponse.status}`);
-                console.error(`❌ Response body: ${errorText}`);
                 throw new Error(`Error activando usuario: ${errorText}`);
             }
 
-            console.log(`✅ Usuario activado con contraseña`);
+            console.log(`✅ Usuario activado`);
         } catch (error) {
             console.error('❌ Error activando usuario:', error);
             throw error;
