@@ -972,12 +972,17 @@ class UserService {
                 throw new Error('Error generando activation link');
             }
 
-            const activationData = await activationResponse.json();
-            const activationToken = activationData.activationLink.split('activateToken=')[1];
+            // ✅ Leer como TEXT, no JSON
+            const activationLink = await activationResponse.text();
+
+            // Extraer token de la URL
+            const activationToken = activationLink.split('activateToken=')[1]?.split('&')[0];
 
             if (!activationToken) {
-                throw new Error('No se pudo extraer activation token');
+                throw new Error(`No se pudo extraer activation token de: ${activationLink}`);
             }
+
+            console.log(`🔑 Token extraído: ${activationToken.substring(0, 20)}...`);
 
             // Activar con contraseña - TOKEN EN URL, PASSWORD EN BODY
             const activateResponse = await this.httpClient.request(
@@ -985,13 +990,14 @@ class UserService {
                 {
                     method: 'POST',
                     body: JSON.stringify({
-                        password: password,  // Solo password en el body
+                        password: password,
                     }),
                 }
             );
 
             if (!activateResponse.ok) {
-                throw new Error('Error activando usuario');
+                const errorText = await activateResponse.text();
+                throw new Error(`Error activando usuario: ${errorText}`);
             }
 
             console.log(`✅ Usuario activado con contraseña`);
