@@ -345,7 +345,7 @@ class OptimizedHTTPClient {
             return this.tokenCache.token;
         }
 
-        const url = `http://${TB_CONFIG.host}:${TB_CONFIG.port}/api/auth/login`;
+        const url = `${TB_CONFIG.protocol}://${TB_CONFIG.host}:${TB_CONFIG.port}/api/auth/login`;
 
         const response = await this.makeRequest(url, {
             method: "POST",
@@ -377,7 +377,7 @@ class OptimizedHTTPClient {
     ): Promise<Response> {
         return concurrencyController.acquire(async () => {
             const token = await this.authenticate();
-            const url = `${TB_CONFIG.host}:${TB_CONFIG.port}${endpoint}`;
+            const url = `${TB_CONFIG.protocol}://${TB_CONFIG.host}:${TB_CONFIG.port}${endpoint}`;
 
             const response = await this.makeRequest(url, {
                 ...options,
