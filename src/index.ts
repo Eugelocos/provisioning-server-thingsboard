@@ -978,9 +978,11 @@ class UserService {
 
     private async activateUser(userId: string, password: string): Promise<void> {
         try {
-            // Obtener el token directamente sin parsear URL
+            const baseUrl = `${TB_CONFIG.protocol}://${TB_CONFIG.host}:${TB_CONFIG.port}`;
+
+            // Obtener activation link CON httpClient (necesita auth)
             const activationResponse = await this.httpClient.request(
-                `/api/user/${userId}/activationLink?sendActivationMail=false`,
+                `/api/user/${userId}/activationLink`,
                 { method: 'GET' }
             );
 
@@ -989,39 +991,34 @@ class UserService {
             }
 
             const activationLink = await activationResponse.text();
-            console.log(`📋 Activation link recibido: ${activationLink}`);
-
-            // Extraer TODO después de activateToken= hasta el final o hasta &
             const tokenMatch = activationLink.match(/activateToken=([^&\s]+)/);
 
             if (!tokenMatch || !tokenMatch[1]) {
-                throw new Error(`No se pudo extraer token del link: ${activationLink}`);
+                throw new Error(`No se pudo extraer token`);
             }
 
             const activationToken = tokenMatch[1];
-            console.log(`🔑 Token extraído: ${activationToken}`);
-            console.log(`🔑 Token length: ${activationToken.length}`);
+            console.log(`🔑 Token: ${activationToken}`);
 
-            // NO uses encodeURIComponent, el token ya viene en formato URL-safe
-            const activateUrl = `/api/noauth/activate?activateToken=${activationToken}&sendActivationMail=false`;
-            console.log(`🌐 URL completa: ${activateUrl}`);
+            // ✅ USAR FETCH DIRECTO para activación (endpoint público)
+            const activateUrl = `${baseUrl}/api/noauth/activate?activateToken=${activationToken}&sendActivationMail=false`;
 
-            const activateResponse = await this.httpClient.request(
-                activateUrl,
-                {
-                    method: 'POST',
-                    body: JSON.stringify({ password }),
-                }
-            );
+            const activateResponse = await fetch(activateUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ password }),
+            });
 
             if (!activateResponse.ok) {
                 const errorText = await activateResponse.text();
-                throw new Error(`Error activando usuario: ${errorText}`);
+                throw new Error(`Error activando: ${errorText}`);
             }
 
             console.log(`✅ Usuario activado`);
         } catch (error) {
-            console.error('❌ Error activando usuario:', error);
+            console.error('❌ Error:', error);
             throw error;
         }
     }
