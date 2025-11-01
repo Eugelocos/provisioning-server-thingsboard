@@ -37,20 +37,20 @@ function generateSimplePassword(length: number = 10): string {
     const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const numbers = '0123456789';
     const allChars = lowercase + uppercase + numbers;
-    
+
     let password = '';
-    
+
     // Asegurar al menos: 1 mayúscula, 1 minúscula, 2 números
     password += lowercase[Math.floor(Math.random() * lowercase.length)];
     password += uppercase[Math.floor(Math.random() * uppercase.length)];
     password += numbers[Math.floor(Math.random() * numbers.length)];
     password += numbers[Math.floor(Math.random() * numbers.length)];
-    
+
     // Completar el resto
     for (let i = password.length; i < length; i++) {
         password += allChars[Math.floor(Math.random() * allChars.length)];
     }
-    
+
     // Mezclar caracteres
     return password.split('').sort(() => Math.random() - 0.5).join('');
 }
@@ -657,7 +657,7 @@ class EmailService {
         user: process.env.EMAIL_USER || '',
         password: process.env.EMAIL_PASSWORD || '',
         from: process.env.EMAIL_FROM || process.env.EMAIL_USER || '',
-        thingsboardUrl: process.env.THINGSBOARD_PUBLIC_URL || 
+        thingsboardUrl: process.env.THINGSBOARD_PUBLIC_URL ||
             `${TB_CONFIG.protocol}://${TB_CONFIG.host}:${TB_CONFIG.port}`,
     };
 
@@ -864,7 +864,7 @@ class UserService {
 
             if (existingUser) {
                 console.log(`👤 Usuario existente: ${email}`);
-                
+
                 if (existingUser.customerId?.id === customerId) {
                     return {
                         user: existingUser,
@@ -889,9 +889,9 @@ class UserService {
             const userData = {
                 email,
                 authority: 'CUSTOMER_USER',
-                customerId: { 
-                    entityType: 'CUSTOMER', 
-                    id: customerId 
+                customerId: {
+                    entityType: 'CUSTOMER',
+                    id: customerId
                 },
                 firstName: defaultFirstName.charAt(0).toUpperCase() + defaultFirstName.slice(1),
                 lastName: defaultLastName.charAt(0).toUpperCase() + defaultLastName.slice(1),
@@ -927,7 +927,7 @@ class UserService {
                     password,
                     customerName,
                     deviceName,
-                    thingsboardUrl: process.env.THINGSBOARD_PUBLIC_URL || 
+                    thingsboardUrl: process.env.THINGSBOARD_PUBLIC_URL ||
                         `${TB_CONFIG.protocol}://${TB_CONFIG.host}:${TB_CONFIG.port}`,
                 });
             }
@@ -979,14 +979,13 @@ class UserService {
                 throw new Error('No se pudo extraer activation token');
             }
 
-            // Activar con contraseña
+            // Activar con contraseña - TOKEN EN URL, PASSWORD EN BODY
             const activateResponse = await this.httpClient.request(
-                `/api/noauth/activate?sendActivationMail=false`,
+                `/api/noauth/activate?activateToken=${activationToken}&sendActivationMail=false`,
                 {
                     method: 'POST',
                     body: JSON.stringify({
-                        activateToken: activationToken,
-                        password: password,
+                        password: password,  // Solo password en el body
                     }),
                 }
             );
@@ -1388,7 +1387,7 @@ function validateProvisioningRequest(body: any): string | null {
     // NUEVA VALIDACIÓN: userEmail (opcional)
     if (body.userEmail) {
         if (typeof body.userEmail !== "string") return "userEmail debe ser string";
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.userEmail)) 
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.userEmail))
             return "userEmail debe ser un email válido";
     }
 
