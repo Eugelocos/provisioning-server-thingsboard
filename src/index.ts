@@ -980,7 +980,6 @@ class UserService {
         try {
             const baseUrl = `${TB_CONFIG.protocol}://${TB_CONFIG.host}:${TB_CONFIG.port}`;
 
-            // Obtener activation link CON httpClient (necesita auth)
             const activationResponse = await this.httpClient.request(
                 `/api/user/${userId}/activationLink`,
                 { method: 'GET' }
@@ -998,10 +997,12 @@ class UserService {
             }
 
             const activationToken = tokenMatch[1];
-            console.log(`🔑 Token: ${activationToken}`);
 
-            // ✅ USAR FETCH DIRECTO para activación (endpoint público)
-            const activateUrl = `${baseUrl}/api/noauth/activate?activateToken=${activationToken}&sendActivationMail=false`;
+            // ✅ PROBAR SIN sendActivationMail
+            const activateUrl = `${baseUrl}/api/noauth/activate?activateToken=${activationToken}`;
+
+            console.log(`🌐 URL EXACTA: ${activateUrl}`);
+            console.log(`📦 Body: ${JSON.stringify({ password })}`);
 
             const activateResponse = await fetch(activateUrl, {
                 method: 'POST',
@@ -1011,9 +1012,11 @@ class UserService {
                 body: JSON.stringify({ password }),
             });
 
+            const responseText = await activateResponse.text();
+            console.log(`📥 Response: ${responseText}`);
+
             if (!activateResponse.ok) {
-                const errorText = await activateResponse.text();
-                throw new Error(`Error activando: ${errorText}`);
+                throw new Error(`Error activando: ${responseText}`);
             }
 
             console.log(`✅ Usuario activado`);
