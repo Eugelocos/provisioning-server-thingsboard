@@ -15,10 +15,12 @@
   "dependencies": {
     "@hono/node-server": "^1.19.5",
     "dotenv": "^17.2.3",
-    "hono": "^4.10.3"
+    "hono": "^4.10.3",
+    "nodemailer": "^7.0.10"
   },
   "devDependencies": {
     "@types/node": "^24.9.1",
+    "@types/nodemailer": "^7.0.3",
     "typescript": "^5.9.3"
   }
 }
