@@ -667,7 +667,7 @@ interface EmailCredentials {
 }
 
 class EmailService {
-    private transporter: Transporter | null = null;
+       private transporter: Transporter | null = null;
     private isConfigured: boolean = false;
     private config = {
         user: process.env.EMAIL_USER || '',
@@ -678,10 +678,19 @@ class EmailService {
     };
 
     constructor() {
+        console.log('🔍 EmailService constructor called');
+        console.log('🔍 EMAIL_USER:', process.env.EMAIL_USER);
+        console.log('🔍 EMAIL_PASSWORD exists:', !!process.env.EMAIL_PASSWORD);
+        console.log('🔍 this.config.user:', this.config.user);
+        console.log('🔍 this.config.password exists:', !!this.config.password);
         this.initialize();
     }
 
     private initialize(): void {
+        console.log('🔍 initialize() called');
+        console.log('🔍 Check: user =', this.config.user);
+        console.log('🔍 Check: password =', this.config.password ? '***set***' : 'empty');
+        
         if (!this.config.user || !this.config.password) {
             console.warn('⚠️ Email service not configured. Set EMAIL_USER and EMAIL_PASSWORD in .env');
             return;
@@ -699,6 +708,9 @@ class EmailService {
             console.log('✅ Email service initialized');
         } catch (error) {
             console.error('❌ Error initializing email service:', error);
+            if (error instanceof Error) {
+                console.error('❌ Stack:', error.stack);
+            }
         }
     }
 
