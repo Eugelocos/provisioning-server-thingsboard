@@ -1,14 +1,12 @@
-# Usamos Node LTS
-FROM node:22-slim
+# ===== Etapa 1: Build =====
+FROM node:22-alpine AS builder
 
-# Carpeta de trabajo
 WORKDIR /app
 
 # Copiamos package.json y package-lock.json
 COPY package*.json ./
-COPY tsconfig.json ./
 
-# Instalamos TODAS las dependencias (incluyendo TypeScript)
+# Instalamos TODAS las dependencias, incluidas devDependencies
 RUN npm ci
 
 # Copiamos el resto del código
@@ -17,8 +15,17 @@ COPY . .
 # Compilamos TypeScript a JS
 RUN npm run build
 
-# Instalamos SOLO dependencias de producción para la imagen final
+# ===== Etapa 2: Imagen final =====
+FROM node:22-alpine
+
+WORKDIR /app
+
+# Solo instalamos dependencias de producción
+COPY package*.json ./
 RUN npm ci --production
+
+# Copiamos los archivos compilados desde la etapa builder
+COPY --from=builder /app/dist ./dist
 
 # Exponemos puerto
 EXPOSE 15182
