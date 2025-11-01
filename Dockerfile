@@ -27,8 +27,13 @@ RUN npm ci --production
 # Copiamos los archivos compilados desde la etapa builder
 COPY --from=builder /app/dist ./dist
 
-# Exponemos puerto
-EXPOSE 15182
+# Declaramos variables configurables
+ENV PORT=15182
+ENV NODE_ENV=production
+
+# Exponemos el puerto (Docker no cambia el mapeo automáticamente,
+# pero esto documenta internamente el puerto del contenedor)
+EXPOSE $PORT
 
 # Comando para correr el servidor
 CMD ["node", "dist/index.js"]
