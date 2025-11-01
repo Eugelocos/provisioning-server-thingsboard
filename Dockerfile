@@ -1,5 +1,5 @@
 # Usamos Node LTS
-FROM node:22-alpine
+FROM node:22-slim
 
 # Carpeta de trabajo
 WORKDIR /app
