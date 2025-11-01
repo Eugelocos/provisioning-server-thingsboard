@@ -8,6 +8,8 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { timeout } from "hono/timeout";
 import { serve } from '@hono/node-server'
+import nodemailer from 'nodemailer';
+import type { Transporter } from 'nodemailer';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -29,6 +31,29 @@ const TB_CONFIG = {
     retryDelay: parseInt(process.env.TB_RETRY_DELAY || "1000"),
     requestTimeout: parseInt(process.env.TB_REQUEST_TIMEOUT || "30000"),
 };
+
+function generateSimplePassword(length: number = 10): string {
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const numbers = '0123456789';
+    const allChars = lowercase + uppercase + numbers;
+    
+    let password = '';
+    
+    // Asegurar al menos: 1 mayúscula, 1 minúscula, 2 números
+    password += lowercase[Math.floor(Math.random() * lowercase.length)];
+    password += uppercase[Math.floor(Math.random() * uppercase.length)];
+    password += numbers[Math.floor(Math.random() * numbers.length)];
+    password += numbers[Math.floor(Math.random() * numbers.length)];
+    
+    // Completar el resto
+    for (let i = password.length; i < length; i++) {
+        password += allChars[Math.floor(Math.random() * allChars.length)];
+    }
+    
+    // Mezclar caracteres
+    return password.split('').sort(() => Math.random() - 0.5).join('');
+}
 
 const PERFORMANCE_CONFIG = {
     maxConcurrentRequests: parseInt(process.env.MAX_CONCURRENT_REQUESTS || "50"),
@@ -600,6 +625,381 @@ class CustomerService {
     }
 }
 
+interface CreateUserParams {
+    email: string;
+    customerId: string;
+    customerName: string;
+    deviceName?: string;
+    firstName?: string;
+    lastName?: string;
+    sendEmail?: boolean;
+}
+
+interface UserResult {
+    user: any;
+    password: string;
+    emailSent: boolean;
+    isExisting: boolean;
+}
+
+interface EmailCredentials {
+    email: string;
+    password: string;
+    customerName: string;
+    deviceName: string;
+    thingsboardUrl: string;
+}
+
+class EmailService {
+    private transporter: Transporter | null = null;
+    private isConfigured: boolean = false;
+    private config = {
+        user: process.env.EMAIL_USER || '',
+        password: process.env.EMAIL_PASSWORD || '',
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER || '',
+        thingsboardUrl: process.env.THINGSBOARD_PUBLIC_URL || 
+            `${TB_CONFIG.protocol}://${TB_CONFIG.host}:${TB_CONFIG.port}`,
+    };
+
+    constructor() {
+        this.initialize();
+    }
+
+    private initialize(): void {
+        if (!this.config.user || !this.config.password) {
+            console.warn('⚠️ Email service not configured. Set EMAIL_USER and EMAIL_PASSWORD in .env');
+            return;
+        }
+
+        try {
+            this.transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                    user: this.config.user,
+                    pass: this.config.password,
+                },
+            });
+            this.isConfigured = true;
+            console.log('✅ Email service initialized');
+        } catch (error) {
+            console.error('❌ Error initializing email service:', error);
+        }
+    }
+
+    async sendCredentials(data: EmailCredentials): Promise<boolean> {
+        if (!this.isConfigured || !this.transporter) {
+            console.warn('⚠️ Email service not configured, skipping email');
+            return false;
+        }
+
+        try {
+            const mailOptions = {
+                from: `"IOTANA - Sistema de Monitoreo" <${this.config.from}>`,
+                to: data.email,
+                subject: `🔐 Credenciales de Acceso - ${data.customerName}`,
+                html: this.generateEmailTemplate(data),
+                text: this.generatePlainText(data),
+            };
+
+            const info = await this.transporter.sendMail(mailOptions);
+            console.log(`✅ Email sent to ${data.email} (${info.messageId})`);
+            return true;
+        } catch (error) {
+            console.error(`❌ Error sending email to ${data.email}:`, error);
+            return false;
+        }
+    }
+
+    private generateEmailTemplate(data: EmailCredentials): string {
+        return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background-color: #f4f7fa;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; max-width: 100%; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+                    
+                    <!-- Header IOTANA -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center; border-radius: 12px 12px 0 0;">
+                            <div style="font-size: 42px; font-weight: bold; color: #ffffff; margin-bottom: 10px;">iotana</div>
+                            <div style="font-size: 18px; color: #ffffff;">Sistema de Monitoreo Inteligente</div>
+                        </td>
+                    </tr>
+                    
+                    <!-- Bienvenida -->
+                    <tr>
+                        <td style="padding: 40px 30px 20px;">
+                            <h2 style="margin: 0 0 20px; color: #2d3748; font-size: 24px;">¡Bienvenido a IOTANA!</h2>
+                            <p style="margin: 0 0 20px; color: #4a5568; font-size: 16px; line-height: 1.6;">
+                                Se ha creado una cuenta para acceder al sistema de monitoreo de <strong>${data.customerName}</strong>.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Tabla de Credenciales -->
+                    <tr>
+                        <td style="padding: 0 30px 30px;">
+                            <table role="presentation" style="width: 100%; background-color: #f7fafc; border-radius: 8px; overflow: hidden;">
+                                <tr>
+                                    <td colspan="2" style="padding: 20px; background-color: #4299e1; color: white; font-weight: 600;">
+                                        🔐 Sus Credenciales de Acceso
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 15px 20px; border-bottom: 1px solid #e2e8f0; color: #2d3748; font-weight: 600; width: 40%;">Usuario:</td>
+                                    <td style="padding: 15px 20px; border-bottom: 1px solid #e2e8f0; color: #4a5568; font-family: monospace;">${data.email}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 15px 20px; border-bottom: 1px solid #e2e8f0; color: #2d3748; font-weight: 600;">Contraseña:</td>
+                                    <td style="padding: 15px 20px; border-bottom: 1px solid #e2e8f0; color: #4a5568; font-family: monospace; font-size: 16px; font-weight: bold;">${data.password}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 15px 20px; color: #2d3748; font-weight: 600;">Dispositivo:</td>
+                                    <td style="padding: 15px 20px; color: #4a5568;">${data.deviceName}</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    
+                    <!-- Botón -->
+                    <tr>
+                        <td style="padding: 0 30px 30px; text-align: center;">
+                            <a href="${data.thingsboardUrl}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #4299e1, #3182ce); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600;">
+                                🚀 Acceder al Sistema
+                            </a>
+                        </td>
+                    </tr>
+                    
+                    <!-- Instrucciones -->
+                    <tr>
+                        <td style="padding: 0 30px 30px;">
+                            <div style="background-color: #fffbf0; border-left: 4px solid #f6e05e; padding: 20px; border-radius: 6px;">
+                                <p style="margin: 0 0 10px; color: #744210; font-weight: 600;">⚠️ Instrucciones de Seguridad</p>
+                                <ul style="margin: 0; padding-left: 20px; color: #744210; font-size: 14px; line-height: 1.6;">
+                                    <li>Guarde estas credenciales en un lugar seguro</li>
+                                    <li>Se recomienda cambiar la contraseña al primer ingreso</li>
+                                    <li>No comparta sus credenciales</li>
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 30px; background-color: #f7fafc; text-align: center; border-radius: 0 0 12px 12px;">
+                            <p style="margin: 0 0 10px; color: #718096; font-size: 14px;">Mensaje automático de IOTANA</p>
+                            <p style="margin: 0; color: #cbd5e0; font-size: 12px;">© ${new Date().getFullYear()} IOTANA - Todos los derechos reservados</p>
+                        </td>
+                    </tr>
+                    
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+        `;
+    }
+
+    private generatePlainText(data: EmailCredentials): string {
+        return `
+IOTANA - Sistema de Monitoreo Inteligente
+
+¡Bienvenido!
+
+Se ha creado una cuenta para acceder al sistema de ${data.customerName}.
+
+CREDENCIALES DE ACCESO
+-----------------------
+Usuario:     ${data.email}
+Contraseña:  ${data.password}
+Dispositivo: ${data.deviceName}
+
+URL: ${data.thingsboardUrl}
+
+INSTRUCCIONES
+-------------
+• Guarde estas credenciales en un lugar seguro
+• Se recomienda cambiar la contraseña al primer ingreso
+• No comparta sus credenciales
+
+© ${new Date().getFullYear()} IOTANA
+        `.trim();
+    }
+
+    isReady(): boolean {
+        return this.isConfigured;
+    }
+}
+
+class UserService {
+    private httpClient: any;
+    private emailService: EmailService;
+
+    constructor(httpClient: any, emailService: EmailService) {
+        this.httpClient = httpClient;
+        this.emailService = emailService;
+    }
+
+    async createOrGetCustomerUser(params: CreateUserParams): Promise<UserResult> {
+        const {
+            email,
+            customerId,
+            customerName,
+            deviceName = 'Dispositivo',
+            firstName,
+            lastName,
+            sendEmail = true,
+        } = params;
+
+        try {
+            // Verificar si usuario existe
+            const existingUser = await this.findUserByEmail(email);
+
+            if (existingUser) {
+                console.log(`👤 Usuario existente: ${email}`);
+                
+                if (existingUser.customerId?.id === customerId) {
+                    return {
+                        user: existingUser,
+                        password: '********',
+                        emailSent: false,
+                        isExisting: true,
+                    };
+                } else {
+                    throw new Error(`El email ${email} ya está registrado en otro cliente`);
+                }
+            }
+
+            // Generar contraseña
+            const password = generateSimplePassword(10);
+
+            // Extraer nombre del email si no se proporciona
+            const [emailUsername] = email.split('@');
+            const defaultFirstName = firstName || emailUsername.split('.')[0] || 'Usuario';
+            const defaultLastName = lastName || emailUsername.split('.')[1] || 'IOTANA';
+
+            // Crear usuario
+            const userData = {
+                email,
+                authority: 'CUSTOMER_USER',
+                customerId: { id: customerId },
+                firstName: defaultFirstName.charAt(0).toUpperCase() + defaultFirstName.slice(1),
+                lastName: defaultLastName.charAt(0).toUpperCase() + defaultLastName.slice(1),
+                additionalInfo: {
+                    description: `Usuario de ${customerName}`,
+                    createdBy: 'Auto-Provisioning',
+                    createdDate: new Date().toISOString(),
+                    deviceAssociated: deviceName,
+                },
+            };
+
+            const createResponse = await this.httpClient.request('/api/user', {
+                method: 'POST',
+                body: JSON.stringify(userData),
+            });
+
+            if (!createResponse.ok) {
+                const errorText = await createResponse.text();
+                throw new Error(`Error creando usuario: ${createResponse.status} - ${errorText}`);
+            }
+
+            const user = await createResponse.json();
+            console.log(`✅ Usuario creado: ${email} (${user.id.id})`);
+
+            // Activar usuario con contraseña
+            await this.activateUser(user.id.id, password);
+
+            // Enviar email
+            let emailSent = false;
+            if (sendEmail && this.emailService.isReady()) {
+                emailSent = await this.emailService.sendCredentials({
+                    email,
+                    password,
+                    customerName,
+                    deviceName,
+                    thingsboardUrl: process.env.THINGSBOARD_PUBLIC_URL || 
+                        `${TB_CONFIG.protocol}://${TB_CONFIG.host}:${TB_CONFIG.port}`,
+                });
+            }
+
+            return {
+                user,
+                password,
+                emailSent,
+                isExisting: false,
+            };
+
+        } catch (error) {
+            console.error(`❌ Error en UserService:`, error);
+            throw error;
+        }
+    }
+
+    private async findUserByEmail(email: string): Promise<any | null> {
+        try {
+            const searchResponse = await this.httpClient.request(
+                `/api/users?pageSize=10&page=0&textSearch=${encodeURIComponent(email)}`
+            );
+
+            if (!searchResponse.ok) return null;
+
+            const searchData = await searchResponse.json();
+            return searchData.data.find((u: any) => u.email === email) || null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    private async activateUser(userId: string, password: string): Promise<void> {
+        try {
+            // Generar activation token
+            const activationResponse = await this.httpClient.request(
+                `/api/user/${userId}/activationLink`,
+                { method: 'GET' }
+            );
+
+            if (!activationResponse.ok) {
+                throw new Error('Error generando activation link');
+            }
+
+            const activationData = await activationResponse.json();
+            const activationToken = activationData.activationLink.split('activateToken=')[1];
+
+            if (!activationToken) {
+                throw new Error('No se pudo extraer activation token');
+            }
+
+            // Activar con contraseña
+            const activateResponse = await this.httpClient.request(
+                `/api/noauth/activate?sendActivationMail=false`,
+                {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        activateToken: activationToken,
+                        password: password,
+                    }),
+                }
+            );
+
+            if (!activateResponse.ok) {
+                throw new Error('Error activando usuario');
+            }
+
+            console.log(`✅ Usuario activado con contraseña`);
+        } catch (error) {
+            console.error('❌ Error activando usuario:', error);
+            throw error;
+        }
+    }
+}
+
 class DeviceService {
     async createOrGet(
         deviceName: string,
@@ -944,6 +1344,8 @@ class DashboardService {
 const customerService = new CustomerService();
 const deviceService = new DeviceService();
 const dashboardService = new DashboardService();
+const emailService = new EmailService();
+const userService = new UserService(httpClient, emailService);
 
 // ================================
 // UTILIDADES
@@ -963,8 +1365,7 @@ function determineCustomerName(serialNumber: string): string {
 
 function validateProvisioningRequest(body: any): string | null {
     if (!body.serialNumber) return "serialNumber es requerido";
-    if (typeof body.serialNumber !== "string")
-        return "serialNumber debe ser string";
+    if (typeof body.serialNumber !== "string") return "serialNumber debe ser string";
     if (body.serialNumber.length < 3) return "serialNumber muy corto";
     if (body.serialNumber.length > 50) return "serialNumber muy largo";
     if (!/^[a-zA-Z0-9_-]+$/.test(body.serialNumber))
@@ -974,20 +1375,25 @@ function validateProvisioningRequest(body: any): string | null {
     if (typeof body.sensorName !== "string") return "sensorName debe ser string";
     if (body.sensorName.length < 2) return "sensorName muy corto";
     if (body.sensorName.length > 50) return "sensorName muy largo";
-    if (!/^[a-zA-Z0-9\s\-_áéíóúñÁÉÍÓÚÑ.]+$/.test(body.sensorName))
-        return "sensorName contiene caracteres inválidos";
 
     if (body.customerName) {
-        if (typeof body.customerName !== "string")
-            return "customerName debe ser string";
+        if (typeof body.customerName !== "string") return "customerName debe ser string";
         if (body.customerName.length < 2) return "customerName muy corto";
         if (body.customerName.length > 100) return "customerName muy largo";
-        if (!/^[a-zA-Z0-9\s\-_áéíóúñÁÉÍÓÚÑ.]+$/.test(body.customerName))
-            return "customerName contiene caracteres inválidos";
+    }
+
+    // NUEVA VALIDACIÓN: userEmail (opcional)
+    if (body.userEmail) {
+        if (typeof body.userEmail !== "string") return "userEmail debe ser string";
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.userEmail)) 
+            return "userEmail debe ser un email válido";
     }
 
     return null;
 }
+
+
+
 
 // ================================
 // ENDPOINTS
@@ -1207,26 +1613,24 @@ app.post("/api/v1/devices/provision", async (c) => {
             return c.json({ success: false, message: validationError }, 400);
         }
 
-        // ✅ Ahora sensorName es obligatorio y validado
         const {
             serialNumber,
             productName = "TempLogger",
             customerName,
             sensorName,
+            userEmail,        // ← NUEVO PARÁMETRO
+            createUser = true, // ← NUEVO: por defecto crear usuario
         } = body;
+
         const deviceName = `${productName}_${serialNumber}`;
-        const finalCustomerName =
-            customerName || determineCustomerName(serialNumber);
+        const finalCustomerName = customerName || determineCustomerName(serialNumber);
 
-        console.log(
-            `Starting provisioning: ${deviceName} for customer: ${finalCustomerName}, sensor: ${sensorName}`
-        );
+        console.log(`Starting provisioning: ${deviceName} for ${finalCustomerName}, sensor: ${sensorName}`);
 
-        const customer = await customerService.getOrCreateWithIncrement(
-            finalCustomerName
-        );
+        // Crear customer
+        const customer = await customerService.getOrCreateWithIncrement(finalCustomerName);
 
-        // ✅ Siempre pasamos sensorName, garantizado
+        // Crear dispositivo
         const deviceResult = await deviceService.createOrGet(
             deviceName,
             serialNumber,
@@ -1234,13 +1638,25 @@ app.post("/api/v1/devices/provision", async (c) => {
             sensorName
         );
 
-        console.log("Device result:", JSON.stringify(deviceResult, null, 2));
-        console.log(
-            "Device ID being passed to dashboard:",
-            deviceResult.device.id.id
-        );
+        // ✅ CREAR USUARIO SI SE SOLICITA Y HAY EMAIL
+        let userResult: UserResult | null = null;
+        if (createUser && userEmail) {
+            try {
+                userResult = await userService.createOrGetCustomerUser({
+                    email: userEmail,
+                    customerId: customer.id.id,
+                    customerName: customer.title,
+                    deviceName: deviceName,
+                    sendEmail: true,
+                });
+                console.log(`✅ Usuario ${userResult.isExisting ? 'existente' : 'creado'}: ${userEmail}`);
+            } catch (userError) {
+                console.warn('⚠️ Error creando usuario, continuando provisioning:', userError);
+                // No fallar todo el provisioning si falla el usuario
+            }
+        }
 
-        // Dashboard creation (no crítico, puede fallar sin afectar el provisioning)
+        // Crear dashboard
         let dashboard = null;
         if (TB_CONFIG.dashboardTemplateId) {
             try {
@@ -1250,16 +1666,13 @@ app.post("/api/v1/devices/provision", async (c) => {
                     customer.id.id
                 );
             } catch (dashError) {
-                console.warn(
-                    "Dashboard creation failed, continuing provisioning:",
-                    dashError
-                );
+                console.warn("Dashboard creation failed:", dashError);
             }
         }
 
         const processingTime = Date.now() - startTime;
 
-        const response = {
+        const response: any = {
             success: true,
             message: deviceResult.isExisting
                 ? "Device found and configured"
@@ -1274,7 +1687,7 @@ app.post("/api/v1/devices/provision", async (c) => {
             customer: {
                 id: customer.id.id,
                 name: customer.title,
-                isNewName: customer.title !== finalCustomerName, // Indica si se tuvo que cambiar el nombre
+                isNewName: customer.title !== finalCustomerName,
             },
             ...(dashboard && {
                 dashboard: {
@@ -1291,9 +1704,17 @@ app.post("/api/v1/devices/provision", async (c) => {
             },
         };
 
-        console.log(
-            `Provisioning completed in ${processingTime}ms: ${deviceName} -> ${customer.title}`
-        );
+        // ✅ AGREGAR INFO DEL USUARIO A LA RESPUESTA
+        if (userResult) {
+            response.user = {
+                email: userEmail,
+                isExisting: userResult.isExisting,
+                emailSent: userResult.emailSent,
+                ...(!userResult.isExisting && { password: userResult.password }), // Solo mostrar password de usuarios nuevos
+            };
+        }
+
+        console.log(`Provisioning completed in ${processingTime}ms`);
         return c.json(response);
     } catch (error) {
         const processingTime = Date.now() - startTime;
@@ -1302,8 +1723,7 @@ app.post("/api/v1/devices/provision", async (c) => {
         return c.json(
             {
                 success: false,
-                message:
-                    error instanceof Error ? error.message : "Unknown provisioning error",
+                message: error instanceof Error ? error.message : "Unknown provisioning error",
                 processingTime: `${processingTime}ms`,
                 timestamp: new Date().toISOString(),
             },
