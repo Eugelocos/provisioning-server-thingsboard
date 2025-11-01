@@ -997,31 +997,32 @@ class UserService {
             }
 
             const activationToken = tokenMatch[1];
+            console.log(`🔑 Token: ${activationToken.substring(0, 20)}...`);
 
-            // ✅ PROBAR SIN sendActivationMail
-            const activateUrl = `${baseUrl}/api/noauth/activate?activateToken=${activationToken}`;
-
-            console.log(`🌐 URL EXACTA: ${activateUrl}`);
-            console.log(`📦 Body: ${JSON.stringify({ password })}`);
+            // ✅ CORRECTO: sendActivationMail en URL, token y password en body
+            const activateUrl = `${baseUrl}/api/noauth/activate?sendActivationMail=false`;
 
             const activateResponse = await fetch(activateUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ password }),
+                body: JSON.stringify({
+                    activateToken: activationToken,
+                    password: password
+                }),
             });
 
-            const responseText = await activateResponse.text();
-            console.log(`📥 Response: ${responseText}`);
-
             if (!activateResponse.ok) {
-                throw new Error(`Error activando: ${responseText}`);
+                const errorText = await activateResponse.text();
+                throw new Error(`Error activando: ${errorText}`);
             }
 
-            console.log(`✅ Usuario activado`);
+            const result = await activateResponse.json();
+            console.log(`✅ Usuario activado con token JWT`);
+
         } catch (error) {
-            console.error('❌ Error:', error);
+            console.error('❌ Error activando usuario:', error);
             throw error;
         }
     }
