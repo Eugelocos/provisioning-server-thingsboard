@@ -889,7 +889,10 @@ class UserService {
             const userData = {
                 email,
                 authority: 'CUSTOMER_USER',
-                customerId: { id: customerId },
+                customerId: { 
+                    entityType: 'CUSTOMER', 
+                    id: customerId 
+                },
                 firstName: defaultFirstName.charAt(0).toUpperCase() + defaultFirstName.slice(1),
                 lastName: defaultLastName.charAt(0).toUpperCase() + defaultLastName.slice(1),
                 additionalInfo: {
