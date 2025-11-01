@@ -1,21 +1,24 @@
 # Usamos Node LTS
 FROM node:22-alpine
 
-
 # Carpeta de trabajo
 WORKDIR /app
 
 # Copiamos package.json y package-lock.json
 COPY package*.json ./
+COPY tsconfig.json ./
 
-# Instalamos dependencias
-RUN npm ci --production
+# Instalamos TODAS las dependencias (incluyendo TypeScript)
+RUN npm ci
 
 # Copiamos el resto del código
 COPY . .
 
 # Compilamos TypeScript a JS
-RUN npx tsc
+RUN npm run build
+
+# Instalamos SOLO dependencias de producción para la imagen final
+RUN npm ci --production
 
 # Exponemos puerto
 EXPOSE 15182
