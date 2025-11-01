@@ -988,21 +988,27 @@ class UserService {
                 throw new Error('Error generando activation link');
             }
 
-            // ✅ Leer como TEXT, no JSON
             const activationLink = await activationResponse.text();
+
+            console.log(`📋 Activation link completo: ${activationLink}`);
 
             // Extraer token de la URL
             const activationToken = activationLink.split('activateToken=')[1]?.split('&')[0];
 
             if (!activationToken) {
-                throw new Error(`No se pudo extraer activation token de: ${activationLink}`);
+                throw new Error(`No se pudo extraer token de: ${activationLink}`);
             }
 
             console.log(`🔑 Token extraído: ${activationToken.substring(0, 20)}...`);
+            console.log(`🔑 Token completo length: ${activationToken.length}`);
 
-            // Activar con contraseña - TOKEN EN URL, PASSWORD EN BODY
+            // Construir URL
+            const activateUrl = `/api/noauth/activate?activateToken=${encodeURIComponent(activationToken)}&sendActivationMail=false`;
+            console.log(`🌐 URL de activación: ${activateUrl.substring(0, 100)}...`);
+
+            // Activar con contraseña
             const activateResponse = await this.httpClient.request(
-                `/api/noauth/activate?activateToken=${activationToken}&sendActivationMail=false`,
+                activateUrl,
                 {
                     method: 'POST',
                     body: JSON.stringify({
@@ -1013,6 +1019,8 @@ class UserService {
 
             if (!activateResponse.ok) {
                 const errorText = await activateResponse.text();
+                console.error(`❌ Response status: ${activateResponse.status}`);
+                console.error(`❌ Response body: ${errorText}`);
                 throw new Error(`Error activando usuario: ${errorText}`);
             }
 
