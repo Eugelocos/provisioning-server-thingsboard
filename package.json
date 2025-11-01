@@ -1,0 +1,20 @@
+{
+  "name": "servidor-provisioning",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@hono/node-server": "^1.19.5",
+    "dotenv": "^17.2.3",
+    "hono": "^4.10.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.1"
+  }
+}
