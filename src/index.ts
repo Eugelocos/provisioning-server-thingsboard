@@ -376,16 +376,32 @@ class OptimizedHTTPClient {
         options: RequestInit = {}
     ): Promise<Response> {
         return concurrencyController.acquire(async () => {
-            const token = await this.authenticate();
             const url = `${TB_CONFIG.protocol}://${TB_CONFIG.host}:${TB_CONFIG.port}${endpoint}`;
+
+            // ✅ Usar Record<string, string> explícitamente
+            const headers: Record<string, string> = {
+                "Content-Type": "application/json",
+            };
+
+            // Copiar headers existentes
+            if (options.headers) {
+                const existingHeaders = new Headers(options.headers);
+                existingHeaders.forEach((value, key) => {
+                    headers[key] = value;
+                });
+            }
+
+            // Solo agregar auth si NO es un endpoint público
+            const isPublicEndpoint = endpoint.includes('/api/noauth/');
+
+            if (!isPublicEndpoint) {
+                const token = await this.authenticate();
+                headers["X-Authorization"] = `Bearer ${token}`;
+            }
 
             const response = await this.makeRequest(url, {
                 ...options,
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-Authorization": `Bearer ${token}`,
-                    ...options.headers,
-                },
+                headers,
             });
 
             return response;
