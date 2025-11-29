@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "15182:15182"
+    environment:
+      - NODE_ENV=production
+      - TB_HOST=${TB_HOST}
+      - TB_PORT=${TB_PORT}
+      - TB_USERNAME=${TB_USERNAME}
+      - TB_PASSWORD=${TB_PASSWORD}
+      - PROVISIONING_API_KEY=${PROVISIONING_API_KEY}
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
