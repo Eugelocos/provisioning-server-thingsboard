@@ -1,0 +1,79 @@
+{
+  "products": [
+    [
+      "prod_1765059289741_gpikxx76l",
+      {
+        "id": "prod_1765059289741_gpikxx76l",
+        "name": "TempLogger Pro",
+        "type": "sensor",
+        "specifications": {
+          "serialNumber": {
+            "type": "string",
+            "label": "Número de Serie",
+            "required": true
+          },
+          "sensorName": {
+            "type": "string",
+            "label": "Nombre del Sensor",
+            "required": true
+          },
+          "productName": {
+            "type": "string",
+            "label": "Nombre del Producto",
+            "defaultValue": "TempLogger"
+          }
+        },
+        "provisioningTemplate": "default",
+        "created": 1765059289741,
+        "updated": 1765059289741,
+        "enabled": true
+      }
+    ]
+  ],
+  "templates": [
+    [
+      "default",
+      {
+        "id": "default",
+        "name": "Provisioning Estándar",
+        "description": "Template por defecto para provisioning básico",
+        "fields": {
+          "serialNumber": {
+            "type": "text",
+            "label": "Número de Serie",
+            "required": true,
+            "validation": "^[a-zA-Z0-9_-]{3,50}$"
+          },
+          "sensorName": {
+            "type": "text",
+            "label": "Nombre del Sensor",
+            "required": true
+          },
+          "customerName": {
+            "type": "text",
+            "label": "Nombre del Cliente",
+            "required": false
+          },
+          "userEmail": {
+            "type": "email",
+            "label": "Email del Usuario",
+            "required": false
+          },
+          "createUser": {
+            "type": "select",
+            "label": "¿Crear Usuario?",
+            "required": false,
+            "options": [
+              "true",
+              "false"
+            ]
+          }
+        },
+        "created": 1765059289742,
+        "updated": 1765059289742
+      }
+    ]
+  ],
+  "timestamp": 1765060789818,
+  "version": "2.0.0"
+}

@@ -1,0 +1,30 @@
+{
+  "name": "servidor-provisioning",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/src/index.js", 
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/src/index.js",
+    "dev": "tsc --watch & nodemon dist/src/index.js", 
+    "dev:tsx": "tsx index.ts",
+    "clean": "rm -rf dist",
+    "test": "node scripts/test-api.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@hono/node-server": "^1.19.5",
+    "dotenv": "^17.2.3",
+    "hono": "^4.10.3",
+    "nodemailer": "^7.0.10"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.1",
+    "@types/nodemailer": "^7.0.3",
+    "nodemon": "^3.1.11",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

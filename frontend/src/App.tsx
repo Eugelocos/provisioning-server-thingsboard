@@ -3,6 +3,7 @@ import { AlertCircle, Activity, Package, FileText, TrendingUp, Plus, Edit, Trash
 
 // ================================
 // API CLIENT
+
 // ================================
 
 const API_BASE = 'http://localhost:15182';

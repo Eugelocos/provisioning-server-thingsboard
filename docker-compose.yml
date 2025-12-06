@@ -3,27 +3,55 @@ version: '3.8'
 services:
   backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     ports:
       - "15182:15182"
     environment:
       - NODE_ENV=production
-      - TB_HOST=${TB_HOST}
-      - TB_PORT=${TB_PORT}
+      - TB_HOST=${TB_HOST:-iotana.mooo.com}
+      - TB_PORT=${TB_PORT:-9090}
       - TB_USERNAME=${TB_USERNAME}
       - TB_PASSWORD=${TB_PASSWORD}
       - PROVISIONING_API_KEY=${PROVISIONING_API_KEY}
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+      - PORT=${PORT:-15182}
+      - HOST=${HOST:-0.0.0.0}
     volumes:
-      - ./data:/app/data
+      - provisioning_data:/app/data
+      # Para desarrollo: - ./backend:/app
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:15182/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - provisioning_network
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:15182}
     ports:
       - "3000:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://backend:15182}
     restart: unless-stopped
+    networks:
+      - provisioning_network
+
+volumes:
+  provisioning_data:
+    driver: local
+
+networks:
+  provisioning_network:
+    driver: bridge
